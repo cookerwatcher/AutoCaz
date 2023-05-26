@@ -1,0 +1,61 @@
+/*
+ * Filename: /src/twitch/faceover/src/static/styles.css
+ * Path: /src/twitch/faceover/src/static
+ * Created Date: Tuesday, May 9th 2023, 1:29:22 pm
+ * Author: hippy
+ * 
+ * Copyright (c) 2023 WTFPL
+ */
+
+
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: transparent;
+}
+
+img {
+    position: absolute;
+    transition: left 0.3s ease, top 0.3s ease, width 0.3s ease, height 0.3s ease;
+}
+
+.face-box {
+    position: absolute;
+    border: 2px solid #00ff00;
+    transition: left 0.3s ease, top 0.3s ease, width 0.3s ease, height 0.3s ease;
+}
+
+.face-label {
+    position: absolute;
+    font-size: 2em;
+    color: #00ff00;
+    width: 120px;
+    transition: left 0.3s ease, top 0.3s ease;
+}
+
+.face-id {
+    position: absolute;
+    font-size: 2em;
+    color: #00ff00;
+    transition: left 0.3s ease, top 0.3s ease;
+}
+
+@keyframes bounceOut {
+    0%    {transform: translateY(0);}
+    10%   {transform: translateY(-40px);}
+    20%   {transform: translateY(0);}
+    30%   {transform: translateY(-30px);}
+    40%   {transform: translateY(0);}
+    50%   {transform: translateY(-20px);}
+    60%   {transform: translateY(0);}
+    70%   {transform: translateY(-10px);}
+    80%   {transform: translateY(0);}
+    90%   {transform: translateY(-5px);}
+    100%  {transform: translateY(0);}
+}
+
+.bounceOut {
+    animation: bounceOut 2s ease;
+}
+
+

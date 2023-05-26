@@ -1,0 +1,381 @@
+<!--
+Filename: /src/twitch/faceover/src/templates/terminator.html
+Path: /src/twitch/faceover/src/templates
+Created Date: Thursday, May 18th 2023, 2:54:16 pm
+Author: hippy
+
+Copyright (c) 2023 WTFPL
+-->
+
+<!DOCTYPE html>
+
+
+<html>
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.3.2/socket.io.min.js" crossorigin="anonymous"
+        referrerpolicy="no-referrer"></script>
+
+    <title>Terminator</title>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 2em;
+        }
+
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-sizing: border-box;
+        }
+
+        #face-wrapper {
+            position: absolute;
+            z-index: 2; /* ensure it's above other elements */
+        }
+
+        #face {
+            position: static;
+            width: 200px;
+            height: 200px;
+            border: 2px solid white;
+            box-sizing: border-box;
+            z-index: 1;
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .code {
+            position: absolute;
+            color: white;
+            white-space: pre;
+            overflow: hidden;
+            animation: typewriter 30s steps(500, end), typewriter-fade-in 1s forwards;
+        }
+
+        .cursor {
+            animation: blink 1s steps(1) infinite;
+            display: inline-block;
+            background-color: white;
+            width: 0.5em;
+            height: 1em;
+        }
+
+        @keyframes typewriter {
+            0% {
+                width: 0;
+            }
+
+            100% {
+                width: 100%;
+            }
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0;
+            }
+        }
+
+        .code-left {
+            text-align: left;
+        }
+
+        #name {
+            position: absolute;
+            color: white;
+            opacity: 0;
+            font-size: 1.5em;
+            top: -50px;
+            animation: typewriter-name 6s steps(40) infinite, typewriter-fade-in 1s forwards 6s;
+        }
+
+        @keyframes typewriter-right {
+            0% {
+                right: 100%;
+            }
+
+            100% {
+                right: 0;
+            }
+        }
+
+        .code-right {
+            animation: typewriter-right 5s steps(40) infinite, typewriter-fade-in 1s forwards;
+            text-align: right;
+        }
+
+        @keyframes typewriter-name {
+
+            0%,
+            50% {
+                width: 0;
+            }
+
+            100% {
+                width: 100%;
+            }
+        }
+
+        @keyframes typewriter-fade-in {
+            0% {
+                opacity: 0;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        @keyframes fade-out {
+            0% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0;
+            }
+        }
+
+        #confidence,
+        #confidence-bar {
+            position: absolute;
+            bottom: -4em;
+            /* Increase this value to move further down */
+            left: 0;
+            opacity: 0;
+            animation: typewriter-fade-in 1s forwards 6s;
+        }
+
+        #confidence {
+            color: white;
+            font-size: 0.75em;
+        }
+
+        #confidence-bar {
+            width: 100%;
+            height: 1em;
+            border: 1px solid white;
+            animation: typewriter-fade-in 1s forwards 6s;
+        }
+
+        #confidence-bar-inner {
+            height: 100%;
+            background: white;
+            width: 0%;
+        }
+
+        @keyframes blink2 {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="face-wrapper">
+        <div id="face">
+            <div id="name" style="width: 100px;">Cooker<span class="cursor">&nbsp;</span></div>
+            <div id="confidence"></div>
+            <div id="confidence-bar">
+                <div id="confidence-bar-inner"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="overlay">
+      
+
+        <div class="code" style="font-size: 1.0em;"">
+
+
+
+            8 *******************
+            9
+            10 ORG $4000
+            11 A1 = $3C
+            12 A2 = $3E
+            13 A4 = $42
+            14 ALTMOVE = $C311
+            15
+            16 ****************************
+            17 * SETUP. move data for VTOC
+            18 * and catalog to memory at
+            19 * $000 - $3FF (pseudo TRK 11
+            20 * #-1)
+            21 **************************
+            22 SETUP LDA #<VTOC 
+            23 STA A1 
+            24 LDA #>VTOC
+            25 STA A1+1
+            26 LDA #<END 
+            27 STA A2 
+            28 LDA #>END
+            29 STA A2+1
+            30 LDA #$00
+            31 STA A4
+            32 LDA #$80
+            33 STA A4+1
+            34 SEC
+            35 JMP ALTMOVE
+            36 <span class="cursor">&nbsp;</span>
+        </div>
+
+        <div class="code">
+            PROCESSING...
+            SCAN COMPLETE
+            ACQUIRING TARGET
+            THREAT LEVEL: MAXIMUM
+            ANOMALY DETECTED.<span class="cursor">&nbsp;</span>
+        </div>
+        <div class="code">
+            Neural Network SYNC...
+            BIO-METRIC SCANNING 10010110
+            SCANNING RESULTS 0xffcc0de1a
+            OPTIMAL SOLUTION UPLOADING <span class="cursor">&nbsp;</span>
+        </div>
+        <div class="code">
+            WEAPON SYSTEMS ONLINE
+            AT OK
+            CARRIER DETECTED
+            14.4Kbps 5G CONNECTED.<span class="cursor">&nbsp;</span>
+        </div>
+        <div class="code">Target acquired.</div>
+    </div>
+
+    <audio id="audio" src="/static/t-800.mp3"></audio>
+
+    <script>
+        // Play the audio
+        document.getElementById('audio').play();
+
+        // Generate a random confidence percentage
+        const confidence = Math.round(Math.random() * 100);
+        document.getElementById('confidence').innerText = `Confidence: ${confidence}%`;
+
+        let currentConfidence = 0;
+        const increment = confidence / 60; // Assuming we want to reach target in one second
+        const intervalId = setInterval(function () {
+            currentConfidence += increment;
+            if (currentConfidence >= confidence) {
+                clearInterval(intervalId);
+                document.getElementById('confidence').style.animation = 'blink2 1s infinite';
+            }
+            document.getElementById('confidence').innerText = `Confidence: ${Math.round(currentConfidence)}%`;
+            document.getElementById('confidence-bar-inner').style.width = `${Math.round(currentConfidence)}%`; // Update the width
+        }, 1000 / 60); // 60 times a second
+
+
+        // After 13 seconds fade out the overlay and stop the audio
+        setTimeout(function () {
+            document.getElementById('overlay').style.animation = 'fade-out 1s forwards';
+            document.getElementById('audio').pause();
+        }, 13000);
+
+        // Position the code elements in the corners of the screen
+        const overlay = document.getElementById('overlay');
+        const elements = Array.from(document.getElementsByClassName('code'));
+
+        const horizontalMargin = 20;
+        const verticalMargin = 40;
+
+        // Positions for the blocks
+        const positions = [
+            { top: verticalMargin, left: horizontalMargin, right: 'auto' },  // top left
+            { top: 'auto', left: horizontalMargin, bottom: verticalMargin, right: 'auto' },  // bottom left
+            { top: verticalMargin, left: 'auto', right: horizontalMargin },  // top right
+            { top: 'auto', left: 'auto', right: horizontalMargin, bottom: verticalMargin },  // bottom right
+            { top: 'auto', left: 'auto', right: 'auto', bottom: verticalMargin }  // middle bottom
+        ];
+
+        elements.forEach((element, index) => {
+            element.style.top = positions[index].top !== 'auto' ? `${positions[index].top}px` : 'auto';
+            element.style.bottom = positions[index].bottom !== 'auto' ? `${positions[index].bottom}px` : 'auto';
+            element.style.left = positions[index].left !== 'auto' ? `${positions[index].left}px` : 'auto';
+            element.style.right = positions[index].right !== 'auto' ? `${positions[index].right}px` : 'auto';
+            if (index === 4) {  // middle bottom block
+                element.style.left = `${overlay.clientWidth / 2 - element.clientWidth / 2}px`;
+            }
+            // Use different typewriter animation for right-aligned blocks
+            const typewriterAnimation = positions[index].right !== 'auto' ? 'typewriter-right' : 'typewriter';
+            element.style.animation = `${typewriterAnimation} ${5 + Math.random() * 5}s steps(40) infinite, typewriter-fade-in 1s forwards`;
+        });
+
+    </script>
+
+    <script>
+        let terminatorId = null;
+
+        function updateElementLocation(element, face_data, widthScale, heightScale) {
+            element.style.position = 'absolute';
+            element.style.left = (face_data.x * widthScale) + 'px';
+            element.style.top = (face_data.y * heightScale) + 'px';
+            element.style.width = (face_data.width * widthScale) + 'px';
+            element.style.height = (face_data.height * heightScale) + 'px';
+            console.log('Width scale: ', widthScale, ', Height scale: ', heightScale);
+            console.log('Face width: ', face_data.width, ', Face height: ', face_data.height);
+
+
+
+        }
+
+        window.addEventListener('message', (event) => {
+            let data = event.data;
+            let faces_data = data.faces_data;
+            control_data = data.control_data;
+            let widthScale = data.widthScale;
+            let heightScale = data.heightScale;
+            
+           // console.log('Terminator - Received face data:', faces_data);
+           // console.log('Terminator - Received control data:', control_data);
+
+            if (control_data.terminator_id != null) {
+                terminatorId = control_data.terminator_id;
+                console.log('Terminator - Received terminator id:', terminatorId);                
+            }
+            
+            if (terminatorId != null) {
+                faces_data.forEach(face_data => {
+                    if (face_data.id == terminatorId) {
+                        console.log('Updating face location:', face_data, widthScale, heightScale);
+                        faceElement = document.getElementById('face-wrapper');
+                        updateElementLocation(faceElement, face_data, widthScale, heightScale);
+                        // update name
+                        const nameElement = document.getElementById('name');
+                        nameElement.innerHTML = face_data.name + '<span class="cursor">&nbsp;</span>';
+                    }
+                });
+            }
+        });
+
+    </script>
+</body>
+</html>

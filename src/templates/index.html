@@ -1,0 +1,186 @@
+<!--
+Filename: /src/twitch/faceover/src/templates/index.html
+Path: /src/twitch/faceover/src/templates
+Created Date: Monday, May 8th 2023, 12:30:36 pm
+Author: hippy
+
+Copyright (c) 2023 WTFPL
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FaceOver</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.3.2/socket.io.min.js" crossorigin="anonymous"
+        referrerpolicy="no-referrer"></script>
+</head>
+
+<body>
+
+    <iframe id="terminator-frame" 
+            src="" 
+            style="position: absolute; width: 100%; height: 100%; border: none; display: none;"
+            allowTransparency="true">
+    </iframe>
+    <div id="main-content">
+        <script>
+            const socket = io();
+            let faceLastUpdated = {};
+            let updateCounter = 0;
+            let control_data = {};
+            let showing_debug = false;
+
+            function updateElement(element, face_data, prefix, widthScale, heightScale) {
+                element.style.left = (face_data.x * widthScale + (prefix === 'face-id-' ? face_data.width - 20 : 0)) + 'px';
+                element.style.top = (face_data.y * heightScale + (prefix === 'face-label-' ? -25 : 0)) + 'px';
+                if (prefix !== 'face-id-') {
+                    element.style.width = (face_data.width * widthScale) + 'px';
+                    element.style.height = (face_data.height * heightScale) + 'px';
+                }
+                if (prefix === 'face-label-') {
+                    element.textContent = face_data.name || '';
+                } else if (prefix === 'face-id-') {
+                    element.textContent = face_data.id || '';
+                }
+            }
+
+            function createElement(type, id, className) {
+                const element = document.createElement(type);
+                element.id = id;
+                element.className = className;
+
+                const mainContent = document.getElementById('main-content');
+                mainContent.appendChild(element);
+
+                return element;
+            }
+
+            function updateOrCreateElement(prefix, face_data, elementType, className, widthScale, heightScale) {
+                let element = document.getElementById(prefix + face_data.id);
+                if (!element) {
+                    element = createElement(elementType, prefix + face_data.id, className);
+                }
+                updateElement(element, face_data, prefix, widthScale, heightScale);
+            }
+
+            socket.on('connect', () => {
+                console.log('Connected to the server');
+            });
+            socket.on('disconnect', () => {
+                console.log('Disconnected from the server');
+            });
+
+            socket.on('controls', (data) => {
+                console.log('Received control data:', data);
+                control_data = data;
+
+                if (data.terminator_id) {
+                    const frame = document.getElementById('terminator-frame');
+                    frame.src = 'terminator.html';
+                    frame.style.display = 'block';
+
+                    document.getElementById('main-content').style.display = 'none'; 
+
+                    setTimeout(() => {
+                        frame.src = '';
+                        frame.style.display = 'none';
+                        document.getElementById('main-content').style.display = 'block';
+                    }, 13000); 
+                }
+
+                if (data.show_detections) {
+                    // show main-content
+                    document.getElementById('main-content').style.display = 'block';
+                } else {
+                    // hide main-content
+                    document.getElementById('main-content').style.display = 'none';
+                }
+
+                if (data.show_debug){
+                  showing_debug = true;                    
+                }   
+                else {
+                  showing_debug = false;
+                }
+
+            });
+
+            socket.on('faces_data', (faces_data) => {
+                console.log('Received face data:', faces_data);
+                updateCounter++;
+
+                let widthScale = window.innerWidth / control_data.frame_width;
+                let heightScale = window.innerHeight / control_data.frame_height;
+
+                faces_data.forEach(face_data => {
+                    faceLastUpdated[face_data.id] = updateCounter;
+
+                    if (face_data.image_url) {
+                        updateOrCreateElement('face-img-', face_data, 'img', '', widthScale, heightScale);
+                        let img = document.getElementById('face-img-' + face_data.id);
+                        img.src = face_data.image_url;
+                    }
+
+                    if (control_data.show_detections && !face_data.image_url && showing_debug) {
+                        updateOrCreateElement('face-box-', face_data, 'div', 'face-box', widthScale, heightScale);
+                        updateOrCreateElement('face-label-', face_data, 'div', 'face-label', widthScale, heightScale);
+                        //updateOrCreateElement('face-id-', face_data, 'div', 'face-id', widthScale, heightScale);
+                    }
+                });
+
+                // share data with iframe
+                let iframeWindow = document.getElementById('terminator-frame').contentWindow;
+                let dataToPass = {faces_data, control_data, widthScale, heightScale}; 
+                iframeWindow.postMessage(dataToPass, '*');    
+                    
+
+                // Remove images and face boxes that are no longer needed
+                const images = document.querySelectorAll('img');
+                images.forEach(img => {
+                    const faceId = img.id.replace('face-img-', '');
+                    if (!faces_data.some(face_data => face_data.id === faceId)) {
+                        if (faceLastUpdated[faceId] && updateCounter - faceLastUpdated[faceId] > 3) {
+                            const slideDirection = img.offsetLeft + img.offsetWidth / 2 > window.innerWidth / 2 ? window.innerWidth : -img.offsetWidth;
+                            img.style.transition = 'left 1s linear';
+                            img.style.left = slideDirection + 'px';
+                            img.classList.add('bounceOut'); 
+                            setTimeout(() => img.remove(), 1500); // match the animation duration
+                        }
+                    }
+                });
+
+                const faceBoxes = document.querySelectorAll('.face-box');
+                faceBoxes.forEach(faceBox => {
+                    const faceId = faceBox.id.replace('face-box-', '');
+                    if (!faces_data.some(face_data => face_data.id === faceId)) {
+                        faceBox.remove();
+                    }
+                });
+
+                const faceLabels = document.querySelectorAll('.face-label');
+                faceLabels.forEach(faceLabel => {
+                    const faceId = faceLabel.id.replace('face-label-', '');
+                    if (!faces_data.some(face_data => face_data.id === faceId)) {
+                        faceLabel.remove();
+                    }
+                });
+
+                const faceIdLabels = document.querySelectorAll('.face-id');
+                faceIdLabels.forEach(faceIdLabel => {
+                    const faceId = faceIdLabel.id.replace('face-id-', '');
+                    if (!faces_data.some(face_data => face_data.id === faceId)) {
+                        faceIdLabel.remove();
+                    }
+                });
+            });
+        </script>
+    </div>
+</body>
+
+</html>
+

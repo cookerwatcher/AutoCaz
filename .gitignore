@@ -1,0 +1,12 @@
+src/__pycache__/
+autocaz_env*
+faceover_env*
+*.pyc
+
+src/__pycache__/*.pyc
+src/__pycache__/app.cpython-38.pyc
+src/__pycache__/config.cpython-38.pyc
+src/__pycache__/face_detection.cpython-38.pyc
+src/__pycache__/obs_capture.cpython-38.pyc
+src/__pycache__/obs.cpython-38.pyc
+src/__pycache__/texture.cpython-38.pyc
