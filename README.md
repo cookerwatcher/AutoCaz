@@ -1,26 +1,32 @@
 # AutoCaz (FaceOver)
 
-
 AutoCaz is a webserver that captures frames from a OBS source and runs facial recogniton on them, and outputs a transparent webpage on which the faces can be overlayed with other images.
 
 ## Installer
 
-Pre-compiled (PyInstaller) version for Windows 64bit is here....
+Pre-compiled version is even more experimental than the application, so it may or may not work.
+It was built with ```python -m nuitka --follow-imports --standalone autocaz.py``` with all the requirements and MS VS C++ installed.
+It will probably throw some antivirus / trust messages as it's not signed with authenticode or anything.
 
-or....
+The version for Windows 64bit is here.... 
+
+
+
+but it might be better to with the source and set up a python environment ....
 
 ## Build yourself
 
-Windows Note: Windows is a real ballache, and will need Visual Studio C++ developer bullshit to compile the face recognizer... 
-Yeah, it's 10GB, but can be uninstalled once AutoCaz is working.
+Windows Note: Windows is a ball ache, and will need Visual Studio C++ developer to compile the face recognizer... 
+Yeah, it's 5GB, but can be uninstalled once AutoCaz is working.
 
 Download Visual Studio Free: 
 https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=Community&channel=Release&version=VS2022&source=VSLandingPage&passive=false&cid=2030
 
 Select only "Desktop development with C++" and install.
 
+(close and re-open VS code and terminals for PATH setting to take effect terminals)
 
-Alternatively you might be able to just use WSL and follow the linux instructions.
+Note: Untested, but this is possibly avoidable if you have Windows Linux Subsystem 2 (WSL2) setup and just follow the steps below.
 
 **Steps**
 
@@ -71,37 +77,44 @@ It will take some time for this to complete while the facial recogniton library 
 
 4. You will need OBS (Open Broadcaster Software - https://obsproject.com/) installed, running and configured to accept WebSocket connections.
 
-5. Edit the config.ini file:
+5. Edit the `config.ini` file:
 
 ```ini
-# configuration for OBS WebSocket connection
 
 [OBS]
-OBS_IP = localhost
-OBS_PORT = 4455
-OBS_PASSWORD = testing123
-
-# configuration for inbuilt webserver for FaceOver
+# configuration for OBS WebSocket connection
+obs_ip = localhost
+obs_port = 4455
+obs_password = testing123
+# don't touch
+obs_last_source = Cooker28
+obs_res_index = 4
 
 [WEB]
-WEBSERVER_PORT = 5000
+# the overlay page is served from here
+webserver_port = 5000
+webserver_name = 127.0.0.1
+
+# don't touch any other settings :)
+# they record the UI settings
 ```
 
 ## Running
 
 1. Start OBS.
 
-2. Start AutoCaz:
+2. Start AutoCaz from a terminal:
 
 ```bash
-cd /home/hip/autocaz # (or cd c:\some\folder\you\unzipped\to)
+cd c:\some\folder\you\unzipped\to
+autocaz_env\Scripts\activate
 python autocaz.py
 ```
-
-![image](https://imgur.com/uxOhIlW.png)
-
 3. Create a Browser Source in OBS called AutoCaz or similar, set it to the same dimensions as the stream output.
    Source should be http://localhost:5000/ or whatever port you configured.
+
+
+![image](https://imgur.com/uxOhIlW.png)
 
 
 ## Using 
@@ -110,32 +123,27 @@ This is the tricky part LUL.
 
 1. Make sure OBS is running before starting AutoCaz
 
-2. Select a OBS source from the drop down box, eg.  Guru Project Matilda.   (Note: known issue, sometimes crashes when changing between sources, so pick the right one).
+2. Select a OBS source from the drop down box, eg.  Guru Project Matilda.   (Note: known issue, sometimes crashes when changing between sources, so pick the right one). Leave the resolution lower to increase the facial detection speed, increase to improve detections.
 
-Leave the resolution lower to increase the facial detection speed, increase to improve detections.
+3. Check the "Run Face Recognition" box to start. Face recognition is a slow process, the whole GUI slows down too.  Expect 2-3 FPS 
 
-3. Check the "Run Face Recognition" box to start.   Face recognition is a slow process, the whole GUI slows down too.  Expect 2-3 FPS 
+4. You should see faces with black boxes around them for unknown people.  Click the black box of the person you want to recognize.  It will be added to the Catalog as "Unknown".
 
-4. You should see faces with black boxes around them for unknown people.  Click the black box of the person you want to recognize.
+5. You can then Name the person, and click Save Person.
 
-(Note: known issue, the UI is slow, hold the mouse button down longer than you think is necessary for a click).
+6. You can select an image (transparent png and animated gif work well) to place over that persons face, using the Overlay Image button. Press Save.  Then use the offset and scale controls to position it in realtime, then save when happy.
 
-It will be added to the Catalog as "Unknown"
+7. Adjust the Threshold setting to lower for a stricter face match to the catalog, higher is less strict.  There is usually a sweet spot to be found for different sources.
 
-5. You can then Name the person, and click Save.
-You can select an image to place over that person, using the Overlay Image button. Press Save.
-Then use the offset and scale controls to position it in realtime, then save when happy.
-
-6. Adjust the Threshold setting to lower for a stricter face match to the catalog, higher is less strict.  There is usually a sweet spot.
-
-7. If you are not getting any detections, increase the Resolution (slows down) or lower the threshold (higher value)
+8. If you are not getting any detections, increase the Resolution (slows down) or lower the recogntion threshold (higher value 0 is very strong, 1 is very loose)
 
 **Tips:** 
 
-* The UI can be slow as balls.  Stop face detection while editing the catalog and getting setup, when setup and running properly, you should not need to use the UI much except tweaking the threshold. 
+* Stop face detection while editing the catalog and getting setup, when setup and running properly, you should not need to use the UI much except tweaking the threshold. 
 
-* It's only good for front on faces mostly, and not a fan of glasses.  You may need to manually Caz sometimes as usual.
+* Don't store too many or faces which are not needed, it will impact comparison performance. 
 
-* If it crashes... check task manager / top for any hung python processess and kill them, the capture might still be going and fill up your ram.
-* It's pretty reliable except for changing sources, so try to pick the correct source the first time and avoid changing or quit first.
+* It's only designed for front on faces mostly, and not a fan of glasses, hats and beanies some times. Your millage may vary.  You may need to manually Caz in desperate times.
+
+* If it crashes... check task manager / top for any hung python processess and kill them, the capture might still be going.
 

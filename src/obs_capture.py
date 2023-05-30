@@ -13,7 +13,7 @@ from src.obs import OBSHandler
 from threading import Thread, Event
 from queue import Queue, Empty
 
-QUEUE_SIZE = 2
+QUEUE_SIZE = 1
 
 def capture_loop(source_name, requested_width, requested_height, connected, capture_running, image_queue, status_queue, desired_capture_rate=1/5):
     obs_handler = OBSHandler()
@@ -120,7 +120,7 @@ class OBSCapture:
 
     def get_image(self):
         if not self.connected.is_set() or not self.capture_running.is_set():
-            return np.zeros((self.height, self.width, 3), dtype=np.uint8)
+            return None # np.zeros((self.height, self.width, 3), dtype=np.uint8)
         else:
             try:                           
                 return self.image_queue.get_nowait()  

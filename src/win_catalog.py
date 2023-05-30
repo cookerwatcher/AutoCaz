@@ -8,43 +8,81 @@ Copyright (c) 2023 WTFPL
 '''
 
 import imgui
+import os
 import tkinter as tk
 from tkinter import filedialog
 
 
 
-def draw_face_ids_window(face_encodings, face_ids):
-    imgui.begin("Face IDs")
-    imgui.listbox_header("##FaceIDs", 200, 250)
-    selected_index = -1
-    was_clicked = False
-    for index, (face_encoding, face_id) in enumerate(zip(face_encodings, face_ids)):
-        item_text = f"Face ID: {face_id}"
-        was_clicked, _ = imgui.selectable(item_text, index == selected_index)
-        if was_clicked:
-            selected_index = index
-            break
-    imgui.listbox_footer()
+def draw_face_ids_window(self, face_encodings, face_ids):
+    imgui.begin("Face IDs", self.cfg.SHOW_FACE_IDS_WINDOW)
+    
+    # number of items in the listbox
+    num_items = len(face_ids)
+
+    # for each item in the listbox, check if there is a person associated with it
+    # if there is, display the person's name
+    for index in range(num_items):
+        face_id = face_ids[index]
+        face_encoding = face_encodings[index]
+        person_id = self.person_catalog.get_person_by_face_id(face_id)
+        if person_id is not None:            
+            imgui.text(f"Face ID: {face_id} is {person_id['name']}")            
+            fname = f"{self.cfg.save_faces_path}face_{face_id}.jpg"
+            texture_id, width, height = self.image_manager.get_person_image(fname)
+            tcnt = 0
+            if texture_id:
+                imgui.same_line()
+                imgui.image(texture_id, 100, 100 * (height / width))
+                    # wrap every 3 images
+        else:
+            imgui.text(f"Face ID: {face_id} is Orphaned")
+            
+        imgui.same_line()
+        if imgui.button(f"Delete##{face_id}", 80, 20):                
+            self.face_detector.input_queue.put(("removeface", face_id))
+
+    imgui.separator()
+
+    # look for non-existent face_ids in persons
+    for person in self.person_catalog.catalog.values():
+        persons_face_ids_list = person['face_ids']
+        # check persons_face_ids_list items to see if it's in face_ids
+        for f_id in persons_face_ids_list:
+            # check if the f_id is in face_ids
+            if f_id not in face_ids:
+                # if it is not, display the person's name
+                imgui.text(f"Face ID: {f_id} is referenced by {person['name']}, but does not exist.")
+                imgui.same_line()
+                if imgui.button(f"Delete##{f_id}", 80, 20):                                        
+                    if f_id in person['face_ids']:
+                        person['face_ids'].remove(f_id)
 
     imgui.end()
 
 
 
 def draw_catalog_window(self):
-        imgui.begin("Catalog")
+        imgui.begin("Catalog")   
+
+        save_me = False
+
         # Create a list of names associated with person IDs and make a listbox with the names
-        names_list = [f"{person_data['name']}" for person_id, person_data in self.person_catalog.catalog.items()]
-        imgui.listbox_header("##List", 200, 400)
         selected_index = None
-        selected_id = None
-        was_clicked = False
-        for index, (person_id, name) in enumerate(zip(self.person_catalog.catalog.keys(), names_list)):
-            was_clicked, _ = imgui.selectable(name, self.selected_person_id == person_id)
-            if was_clicked:
-                selected_index = index
-                selected_id = person_id
-                break
-        imgui.listbox_footer()
+        names_list = [f"{person_data['name']}" for person_id, person_data in self.person_catalog.catalog.items()]
+        
+        if imgui.listbox_header("##List", 180, 600):
+            
+            selected_id = None
+            was_clicked = False
+            for index, (person_id, name) in enumerate(zip(self.person_catalog.catalog.keys(), names_list)):
+                was_clicked, _ = imgui.selectable(name, self.selected_person_id == person_id)
+                if was_clicked:
+                    selected_index = index
+                    selected_id = person_id
+                    break            
+            imgui.listbox_footer()
+            
 
         if selected_index is not None:
             self.selected_person_id = selected_id
@@ -59,16 +97,16 @@ def draw_catalog_window(self):
                 self.notes = person_data["notes"]
                 self.image_to_replace_with = person_data["image_to_replace_with"]
 
-
             # Create a child space for the properties editor
             imgui.same_line()
+
             imgui.begin_child("properties_editor")
             if self.selected_person_id is not None:
                 person_data = self.person_catalog.catalog[self.selected_person_id]
-
-   
-                imgui.new_line()
-
+  
+                imgui.same_line()            
+                if imgui.button("Terminator"):
+                    self.terminate_id = self.person_catalog.get_face_ids_for_person(self.selected_person_id)[0]
 
                 # list all fade_ids for this person
                 for face_id in person_data["face_ids"]:
@@ -79,11 +117,22 @@ def draw_catalog_window(self):
                 # Image path
                 # imgui.text("Image Path: " + self.image_path)
                 # Image display
-                texture_id, width, height = self.image_manager.get_person_image(self.image_path)
-                if texture_id:
-                    imgui.image(texture_id, 100, 100 * (height / width))
 
+                # display an image for each face_id
+                for face_id in person_data["face_ids"]:
 
+                    fname = f"{self.cfg.save_faces_path}face_{face_id}.jpg"
+                    texture_id, width, height = self.image_manager.get_person_image(fname)
+                    tcnt = 0
+                    if texture_id:
+                        imgui.image(texture_id, 100, 100 * (height / width))
+                        # wrap every 3 images
+                        tcnt += 1
+                        if (tcnt) % 3 != 0:
+                            imgui.same_line()
+                        
+
+                imgui.new_line()
                 # Name editor
                 _, self.selected_person_name = imgui.input_text("Name", self.selected_person_name, 256)
                 
@@ -98,13 +147,24 @@ def draw_catalog_window(self):
                     root.withdraw()
                     file_path = filedialog.askopenfilename(initialfile=self.image_to_replace_with,
                         title="Select Image to Overlay",
-                        filetypes=[("Image files", "*.jpg ; *.png ; *.jpeg"), ("All files", "*.*")],
+                        filetypes=[("Image files", "*.jpg ; *.png ; *.jpeg ; *.gif"), ("All files", "*.*")],
                         defaultextension="*.png",                        
                     )
                     if file_path:
                         self.image_to_replace_with = file_path
+                        save_me = True
 
-                imgui.text("Overlay Image: " + (self.image_to_replace_with or "None"))
+                # clear button
+                imgui.same_line()
+                if imgui.button("Clear"):
+                    self.image_to_replace_with = None
+                    person_data['image_to_replace_with'] = None
+                    save_me = True
+
+                # get just the filename
+                just_filename = os.path.basename(self.image_to_replace_with) if self.image_to_replace_with else "None"
+
+                imgui.text("Image: " + (just_filename or "None"))
 
                 imgui.new_line()
 
@@ -118,9 +178,12 @@ def draw_catalog_window(self):
                 _, alpha = imgui.slider_float("Alpha", person_data.get('alpha', 1.0), 0.0, 1.0)
                 person_data['alpha'] = alpha
 
+                imgui.new_line()
 
                 # Save button
-                if imgui.button("Save"):
+                if imgui.button("Save Person") or save_me:
+                    save_me = False 
+
                     existing_person_id = self.person_catalog.find_person_by_name(self.selected_person_name)
                     if existing_person_id is not None and existing_person_id != self.selected_person_id:
                         # Merge the existing person with the currently selected person
@@ -161,15 +224,16 @@ def draw_catalog_window(self):
                 if imgui.button("Delete Person"):
                     tmpids = self.person_catalog.get_face_ids_for_person(self.selected_person_id)
                     for tmpid in tmpids:
-                        self.face_detector.remove_face(tmpid)                    
+                        self.face_detector.input_queue.put(("removeface", tmpid))
+                        # self.face_detector.remove_face(tmpid)                    
                     self.person_catalog.remove_person(self.selected_person_id)                    
                     self.selected_person_id = None
 
-                if imgui.button("Terminator"):
-                    self.face_detector.terminate_id = self.person_catalog.get_face_ids_for_person(self.selected_person_id)[0]
+           
 
             imgui.end_child()
 
         imgui.end()
 
-        # draw_face_ids_window(self.face_detector.face_encodings, self.face_detector.face_ids)
+        if self.cfg.SHOW_FACE_IDS_WINDOW:           
+            draw_face_ids_window(self, self.face_detector.face_encodings, self.face_detector.face_ids)

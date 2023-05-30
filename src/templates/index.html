@@ -37,7 +37,7 @@ Copyright (c) 2023 WTFPL
 
             function updateElement(element, face_data, prefix, widthScale, heightScale) {
                 element.style.left = (face_data.x * widthScale + (prefix === 'face-id-' ? face_data.width - 20 : 0)) + 'px';
-                element.style.top = (face_data.y * heightScale + (prefix === 'face-label-' ? -25 : 0)) + 'px';
+                element.style.top = (face_data.y * heightScale + (prefix === 'face-label-' ? -40 : 0)) + 'px';
                 if (prefix !== 'face-id-') {
                     element.style.width = (face_data.width * widthScale) + 'px';
                     element.style.height = (face_data.height * heightScale) + 'px';

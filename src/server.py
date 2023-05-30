@@ -15,12 +15,9 @@ from urllib.parse import unquote, quote
 from src.config import Config
 
 app = Flask(__name__)
+cfg = Config()
 
-# Load the config file
-config = Config()
-config.load()
-
-app.config['SERVER_NAME'] = "localhost:" + str(config.WEBSERVER_PORT)
+app.config['SERVER_NAME'] = cfg.WEBSERVER_NAME + ":" + str(cfg.WEBSERVER_PORT)
 socketio = SocketIO(app)
 
 
@@ -35,10 +32,10 @@ def index2():
 @app.route('/images/<path:file_path>')
 def serve_image(file_path):
     file_path = unquote(file_path)  # Decode the file path
-    filename = "/" + file_path 
-    #filename = os.path.join(file_path)
+    filename = file_path 
+    filename = os.path.join(file_path)
 
-    # read the file as raw bytes
+    # read the file as raw .ytes
     with open(filename, 'rb') as f:
         file_bytes = f.read()
 
@@ -47,6 +44,7 @@ def serve_image(file_path):
     response.headers['Content-Type'] = 'application/octet-stream'
     response.headers['Content-Disposition'] = 'attachment; filename={}'.format(filename)
     return response
+
 
 def generate_image_url(file_path):
     with app.app_context():
@@ -59,11 +57,12 @@ def broadcast_faces(faces_data):
 def broadcast_controls(controls):
     socketio.emit('controls', controls)
 
-def start_server():
-    socketio.run(app, host='0.0.0.0', port=config.WEBSERVER_PORT, debug=False)
+def _start_server():
+    socketio.run(app, host='0.0.0.0', port=cfg.WEBSERVER_PORT, debug=False)
+
 
 def run_server():
-    server_thread = threading.Thread(target=start_server)
+    server_thread = threading.Thread(target=_start_server)
     server_thread.daemon = True
     server_thread.start()
 

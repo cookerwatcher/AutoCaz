@@ -8,9 +8,9 @@ Copyright (c) 2023 WTFPL
 '''
 
 import os
+import time
 import pickle
 import uuid
-
 
 class PersonCatalog:
     def __init__(self, catalog_path='faces/catalog.pkl'):
@@ -26,6 +26,11 @@ class PersonCatalog:
     def add_person(self, face_ids, name, image_path, notes='', image_to_replace_with=None, last_seen=None, scale=1.0, offset=(0, 0), alpha=1):
         person_id = self._next_person_id
         self._next_person_id = self.new_uuid()
+
+        # check if image_to_replace_with exists
+        if image_to_replace_with is not None:
+            if not os.path.exists(image_to_replace_with):
+                image_to_replace_with = None
 
         self.catalog[person_id] = {
             'face_ids': face_ids,
@@ -53,6 +58,10 @@ class PersonCatalog:
                 for face_id in face_ids:
                     self.face_id_to_person[face_id] = person_id
 
+            if image_to_replace_with is not None:
+                if not os.path.exists(image_to_replace_with):
+                    image_to_replace_with = None
+                    
             if image_to_replace_with is not None:
                 self.catalog[person_id]['image_to_replace_with'] = image_to_replace_with
             if last_seen is not None:
@@ -87,7 +96,10 @@ class PersonCatalog:
 
     def get_face_ids_for_person(self, person_id):
         return self.catalog[person_id]['face_ids']
-
+    
+    def update_last_seen(self, person_id):
+            person_id['last_seen'] = time.time()
+       
     def get_person_by_face_id(self, face_id):
         person_id = self.face_id_to_person.get(face_id)
         return self.catalog.get(person_id)

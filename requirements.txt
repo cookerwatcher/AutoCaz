@@ -9,3 +9,4 @@ numpy
 imutils
 flask
 flask_socketio
+simple-websocket

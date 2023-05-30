@@ -57,6 +57,10 @@ class OBSHandler:
             return None
 
         input_list = self.client.call(requests.GetInputList()).datain
+
+        if "Desktop Audio" in input_list:
+             input_list.remove("Desktop Audio")
+
         return input_list
 
     def get_current_program_scene_name(self):

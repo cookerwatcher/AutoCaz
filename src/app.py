@@ -13,17 +13,23 @@ from src.image_manager import ImageManager
 from time import perf_counter
 from src.texture import Texture
 from src.obs import OBSHandler
-from src.face_detection import FaceDetector
+
+from src.persons import PersonCatalog
 from src.obs_capture import OBSCapture
 from src.win_catalog import draw_catalog_window
 from src.win_detection import draw_detection_window
-
+from src.face_detection import FaceDetector
+import src.face_processing as face_processing
+from src.server import run_server
+from src.config import Config
 
 class App:
     # application stats
     app_frame_count = 0
     app_start_time = perf_counter()
     app_fps = 0
+
+    cfg = Config()
 
     # OBS command and control
     obs_handler = OBSHandler()
@@ -39,24 +45,22 @@ class App:
     obs_input_texture = None  # the texture that is used to display the image
     obs_status_string = ""
 
+    # create face detector instance which will start the server
+    face_detector = FaceDetector()    
+    DetectorBusy = False
 
-    # face detection
-    face_detector = FaceDetector()
-    face_detection_enabled = False
-    face_detection_output_image = None
-    # the texture that is used to display the image
-    face_detection_output_texture = None
-    face_locations = []
-    face_ids = []
-
-    selected_scale_option = 0  # Default to "Full"
+    frame = None # the current frame being processed from the input
+    frame_copy = None
+    face_locations = [] # the locations of the faces in the frame
+    face_ids = [] # the ids of the faces in the frame
 
     # person catalog, for face recognition persistance
-    person_catalog = face_detector.person_catalog
+    person_catalog = PersonCatalog()
 
     # UI state
-    obs_current_resolution_combo_index = 0
+    obs_current_resolution_combo_index = 1
     obs_capture_resolutions = [
+        "320x180",
         "640x360",
         "854x480",
         "960x540",
@@ -66,6 +70,16 @@ class App:
         "1920x1080",
     ]
 
+
+    autoAddNewFaces = False  # if not true, then only known faces will be detected        
+    distance_threshold = 0.5    
+    replace_faces = True  
+    terminate_id = None  # this is for the terminator effect.
+    web_show_detections = True
+    web_show_debug = False
+    
+
+    # UI state
     selected_person_id = None
     selected_person_name = ""
     image_path = ""
@@ -76,48 +90,59 @@ class App:
     # this is application constructor
 
     def __init__(self):
-        print("FaceOver App Created :)")
-   
-    # return face id of the face that was clicked on, or None if no face was clicked
-    # def get_clicked_face_id(self, clicked_position):
-    #     if clicked_position is None:
-    #         return None
-
-    #     clicked_x, clicked_y = clicked_position
-
-    #     for face_id, (top, right, bottom, left) in zip(self.face_ids, self.face_locations):
-    #         if left <= clicked_x <= right and top <= clicked_y <= bottom:
-    #             return face_id
-    #     return None
+        print("AutoCaz App Created :)")
+     
+        
 
     # boot the application.  returning anything except True here terminates the application
-    def Setup(self):
-        self.obs_input_texture = Texture(320, 240)
-        self.face_detection_output_texture = Texture(320, 240)
+    def Setup(self):       
+      
+        run_server()
+
+
+        self.face_detector.start()
+        self.obs_input_texture = Texture(640, 360)
+        self.face_detection_output_texture = Texture(640, 360)
 
         self.obs_capture.startup()
-
         self.obs_connected = self.obs_handler.connect()
         if self.obs_connected:
             self.obs_input_list = self.obs_handler.get_input_list()
 
-        theme.load_default_style()
+        # look for cfg.OBS_LAST_INPUT_NAME in the list of inputs
+        if self.obs_connected and self.cfg.OBS_LAST_SOURCE != "":
+            input_names = [x['inputName'] for x in self.obs_input_list["inputs"]]
+            for i in range(len(input_names)):
+                if input_names[i] == self.cfg.OBS_LAST_SOURCE:
+                    self.obs_input_id = i
+                    self.obs_input_name = input_names[i]
+                    break
 
+        self.obs_current_resolution_combo_index = self.cfg.OBS_LAST_RESOLUTION
+       
+        self.obs_capture.set_source(self.obs_input_name)
+    
+    
         return True
 
     # shutdown the application
     def Teardown(self):
-        # disconnect OBS command and control
+
+        self.cfg.OBS_LAST_SOURCE = self.obs_input_name
+        self.cfg.save()
+
+        # shutdown the face detector
+        self.face_detector.input_queue.put("quit")
+        # disconnect OBS capture, and command and control
+        self.obs_capture._stop_capture()
         if self.obs_connected:
             self.obs_handler.disconnect()
-        self.obs_capture._stop_capture()
-        # stop face detector
-        self.face_detector.stop()
+        
 
     # Main application loop
-
     def AppMainLoop(self):
-        self.AppUI()
+        
+        detection_result = None
 
         # this call is non-blocking, returns nothing except when a new frame is available
         self.obs_input_image = self.obs_capture.get_image()  
@@ -125,28 +150,48 @@ class App:
         if self.obs_input_image is not None:
             self.obs_input_texture.update_texture_data(self.obs_input_image)
             self.obs_status_string = self.obs_capture.get_status_string()
+           
+            if self.cfg.DETECTION_ACTIVE:
 
-        # here we do the face detection on obs input image and return it as face_detection_output_image
-        if self.obs_input_image is not None and self.face_detection_enabled:
+                if self.DetectorBusy is not True:
+                    self.frame_copy = self.obs_input_image.copy()
+                    self.frame = self.obs_input_image
+                    self.face_detector.input_queue.put(("detect", (self.frame, self.cfg.DETECTION_THRESHOLD)))
+                    self.DetectorBusy = True
+                else:
+                    # check for results from the face detector
+                    try:
+                        detection_result = self.face_detector.output_queue.get(timeout=0.01)  # Timeout if no results are available                    
+                    except:                    
+                        pass # print("No results yet.")
 
-            # this call is non-blocking, returns nothing except when a new recognition frame is available
-            detection_result = self.face_detector.run_detection(self.obs_input_image)
+                    if detection_result is not None:
+                        # there was a new frame process
+                        self.face_locations, self.face_ids = detection_result
+                        
+                        # print face locations and face IDs detections
+                        if self.face_locations:
+                            print("Face locations:", self.face_locations)
+                            print("Face IDs:", self.face_ids)
 
-            if detection_result is not None:
-                # there was a new frame process
-                self.face_detection_output_image, self.face_locations, self.face_ids = detection_result
-                self.face_detection_output_texture.update_texture_data(self.face_detection_output_image)
+                        # look through the persons catalog and see if any of the detected faces are known
+                        for face_id in self.face_ids:
+                            person = self.person_catalog.get_person_by_face_id(face_id)
+                            if person:
+                                print("Known face detected:", person)
+                                self.person_catalog.update_last_seen(person)
 
-                # we shall do the the draw faces and persons catalog here
-                
-                # print face locations and face IDs detections
-                if self.face_locations:
-                    print("Face locations:", self.face_locations)
-                    print("Face IDs:", self.face_ids)
-
-
-
-
+                        face_processing.broadcast_face_data(self.frame, self.face_locations, self.face_ids, self.person_catalog, web_show_debug = self.cfg.OVERLAY_DEBUG, web_show_detections = self.cfg.OVERLAY_OUTPUT, terminate_id = self.terminate_id)
+                        # clear the flag
+                        if self.terminate_id is not None:
+                            self.terminate_id = None
+                                                    
+                        # we shall do the the draw faces and persons catalog here
+                        self.face_detection_output_image = face_processing.draw_faces(self.frame, self.face_locations, self.face_ids, self.person_catalog, replace_faces=self.cfg.DETECTION_REPLACE,debug=self.cfg.DETECTION_DEBUG)
+                        self.face_detection_output_texture.update_texture_data(self.face_detection_output_image)
+            
+                        # setup for next detection.
+                        self.DetectorBusy = False
 
 
     def AppUI(self):
@@ -157,15 +202,16 @@ class App:
         # person/face catalog window
         draw_catalog_window(self)
 
-        # draw the FPS counter
-        # self.app_frame_count += 1
-        # self.app_fps = self.app_frame_count / (perf_counter() - self.app_start_time)
-        # imgui.set_next_window_position(0, 0)
-        # imgui.set_next_window_size(100, 50)
-        # imgui.begin("FPS", flags=imgui.WINDOW_NO_TITLE_BAR)
-        # imgui.text("FPS: %.1f" % self.app_fps)
-        # imgui.end()
-
+        #fps timer
+        self.app_frame_count += 1
+        if perf_counter() - self.app_start_time >= 1:
+            self.app_fps = self.app_frame_count / (perf_counter() - self.app_start_time)
+            self.app_frame_count = 0
+            self.app_start_time = perf_counter()
         
-
+        imgui.set_next_window_position(0, 0)
+        imgui.set_next_window_size(100, 50)
+        imgui.begin("FPS", flags=imgui.WINDOW_NO_TITLE_BAR)
+        imgui.text("FPS: %.1f" % self.app_fps)
+        imgui.end()
 
