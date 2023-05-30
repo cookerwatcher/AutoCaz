@@ -2,18 +2,6 @@
 
 AutoCaz is a webserver that captures frames from a OBS source and runs facial recogniton on them, and outputs a transparent webpage on which the faces can be overlayed with other images.
 
-## Installer
-
-Pre-compiled version is even more experimental than the application, so it may or may not work.
-It was built with ```python -m nuitka --follow-imports --standalone autocaz.py``` with all the requirements and MS VS C++ installed.
-It will probably throw some antivirus / trust messages as it's not signed with authenticode or anything.
-
-The version for Windows 64bit is here.... 
-
-
-
-but it might be better to with the source and set up a python environment ....
-
 ## Build yourself
 
 Windows Note: Windows is a ball ache, and will need Visual Studio C++ developer to compile the face recognizer... 
